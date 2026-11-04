@@ -1,0 +1,99 @@
+
+<div class="container">
+
+  <h1>AI Document Assistant</h1>
+
+  <p>Upload a document, generate a summary, or ask questions about its contents.</p>
+
+  <hr>
+
+  <h2>Upload Document</h2>
+
+  <label for="documentFile">Upload a text file (.txt)</label>
+  <input
+    id="documentFile"
+    type="file"
+    accept=".txt,text/plain"
+    (change)="onFileSelected($event)"
+  />
+
+  <label for="documentText">Document text</label>
+  <textarea
+    id="documentText"
+    [(ngModel)]="documentText"
+    rows="10"
+    placeholder="Paste your document here or upload a text file..."
+  ></textarea>
+
+  <hr>
+
+  <h2>Prepare Document</h2>
+
+  <button
+    (click)="prepareDocument()"
+    [disabled]="isLoading || !documentText.trim()"
+  >
+    {{ isLoading ? 'Preparing...' : 'Prepare Document' }}
+  </button>
+
+  @if (preparedText) {
+    <section class="result">
+      <h3>Prepared Text</h3>
+      <p>{{ preparedText }}</p>
+    </section>
+  }
+
+  <hr>
+
+  <h2>AI Summary</h2>
+
+  <button
+    (click)="summarizeDocument()"
+    [disabled]="isSummarizing || !documentText.trim()"
+  >
+    {{ isSummarizing ? 'Summarizing...' : 'Summarize Document' }}
+  </button>
+
+  @if (summary) {
+    <section class="result">
+      <h3>AI Summary</h3>
+      <p>{{ summary }}</p>
+    </section>
+  }
+
+  <hr>
+
+  <h2>Ask Questions About Your Document</h2>
+
+  <p>Ask a question and get an answer based on your document.</p>
+
+  <label for="question">Your question</label>
+
+  <textarea
+    id="question"
+    [(ngModel)]="question"
+    rows="3"
+    placeholder="For example: When will the book discussion group begin?"
+  ></textarea>
+
+  <button
+    (click)="askQuestion()"
+    [disabled]="isAsking || !documentText.trim()"
+  >
+    {{ isAsking ? 'Finding answer...' : 'Ask Question' }}
+  </button>
+
+  @if (answer) {
+    <section class="result">
+      <h3>Answer</h3>
+      <p>{{ answer }}</p>
+    </section>
+  }
+
+  @if (errorMessage) {
+    <section class="error">
+      <p>{{ errorMessage }}</p>
+    </section>
+  }
+
+</div>
