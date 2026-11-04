@@ -1,3 +1,6 @@
+
+using Microsoft.Extensions.Caching.Memory;
+
 namespace AiDocumentAssistant.Api.Services;
 
 public class DocumentSemanticSearchService
@@ -5,15 +8,18 @@ public class DocumentSemanticSearchService
     private readonly DocumentChunkingService _chunkingService;
     private readonly DocumentEmbeddingService _embeddingService;
     private readonly CosineSimilarityService _similarityService;
+    private readonly IMemoryCache _cache;
 
     public DocumentSemanticSearchService(
         DocumentChunkingService chunkingService,
         DocumentEmbeddingService embeddingService,
-        CosineSimilarityService similarityService)
+        CosineSimilarityService similarityService,
+        IMemoryCache cache)
     {
         _chunkingService = chunkingService;
         _embeddingService = embeddingService;
         _similarityService = similarityService;
+        _cache = cache;
     }
 
     public async Task<List<string>> FindRelevantChunksAsync(
@@ -44,6 +50,7 @@ public class DocumentSemanticSearchService
 
         var chunks = _chunkingService.SplitIntoChunks(documentText);
 
+        // Generate an embedding for the question.
         var questionEmbedding =
             await _embeddingService.GenerateEmbeddingAsync(
                 question,
@@ -55,14 +62,27 @@ public class DocumentSemanticSearchService
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var chunkEmbedding =
-                await _embeddingService.GenerateEmbeddingAsync(
-                    chunk,
-                    cancellationToken);
+            // Reuse the cached embedding if we have already processed this chunk.
+            var cacheKey = $"document-embedding:nomic-embed-text:{chunk}";
+
+            if (!_cache.TryGetValue(
+                cacheKey,
+                out float[]? chunkEmbedding))
+            {
+                chunkEmbedding =
+                    await _embeddingService.GenerateEmbeddingAsync(
+                        chunk,
+                        cancellationToken);
+
+                _cache.Set(
+                    cacheKey,
+                    chunkEmbedding,
+                    TimeSpan.FromHours(1));
+            }
 
             var score = _similarityService.Calculate(
                 questionEmbedding,
-                chunkEmbedding);
+                chunkEmbedding!);
 
             scoredChunks.Add((chunk, score));
         }

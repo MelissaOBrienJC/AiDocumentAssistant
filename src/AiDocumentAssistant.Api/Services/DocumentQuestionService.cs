@@ -20,16 +20,21 @@ public class DocumentQuestionService
     {
         var request = new
         {
-            model = "qwen2.5:0.5b",
+          model = "qwen2.5:3b",
             prompt =
                 "You answer questions about a document.\n\n" +
-                "STRICT RULES:\n" +
-                "- Use ONLY facts explicitly written in the document.\n" +
-                "- Never guess, infer, calculate, or assume an answer.\n" +
-                "- Similar information is NOT sufficient evidence.\n" +
-                "- If the exact answer is not stated, respond with exactly: " +
+                "RULES:\n" +
+                "- Base your answer ONLY on information in the document.\n" +
+                "- Understand questions expressed using different words or phrases " +
+                "that have the same meaning as information in the document.\n" +
+                "- You may make reasonable interpretations of the document's " +
+                "wording, but do not introduce unsupported facts.\n" +
+                "- Do not use outside knowledge or make assumptions about " +
+                "information the document does not contain.\n" +
+                "- If the document does not contain enough information to answer, " +
+                "respond with exactly: " +
                 "\"The document does not provide that information.\"\n" +
-                "- Do not use general knowledge.\n\n" +
+                "- Keep answers concise and direct.\n\n" +
                 "DOCUMENT:\n" +
                 documentText +
                 "\n\nQUESTION:\n" +
@@ -68,4 +73,5 @@ public class DocumentQuestionService
         [JsonPropertyName("response")]
         public string? Response { get; set; }
     }
+
 }

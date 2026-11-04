@@ -10,16 +10,16 @@ public class DocumentQuestionController : ControllerBase
 {
     private readonly DocumentQuestionService _questionService;
     private readonly DocumentTextService _textService;
-    private readonly DocumentEvidenceService _evidenceService;
+    private readonly DocumentSemanticSearchService _semanticSearchService;
 
     public DocumentQuestionController(
         DocumentQuestionService questionService,
         DocumentTextService textService,
-        DocumentEvidenceService evidenceService)
+        DocumentSemanticSearchService semanticSearchService)
     {
         _questionService = questionService;
         _textService = textService;
-        _evidenceService = evidenceService;
+        _semanticSearchService = semanticSearchService;
     }
 
     public record AskQuestionRequest(string? Text, string? Question);
@@ -56,22 +56,24 @@ public class DocumentQuestionController : ControllerBase
             });
         }
 
-        var evidence = _evidenceService.FindRelevantSentences(
-            preparedText,
-            request.Question);
-
-        if (evidence.Count == 0)
-        {
-            return Ok(new
-            {
-                answer = "The document does not provide that information."
-            });
-        }
-
-        var evidenceText = string.Join(" ", evidence);
-
         try
         {
+            var relevantChunks =
+                await _semanticSearchService.FindRelevantChunksAsync(
+                    preparedText,
+                    request.Question.Trim(),
+                    cancellationToken: cancellationToken);
+
+            if (relevantChunks.Count == 0)
+            {
+                return Ok(new
+                {
+                    answer = "The document does not provide that information."
+                });
+            }
+
+            var evidenceText = string.Join("\n\n", relevantChunks);
+
             var answer = await _questionService.AnswerAsync(
                 evidenceText,
                 request.Question.Trim(),
