@@ -1,6 +1,7 @@
 
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using AiDocumentAssistant.Api.Services;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -48,6 +49,24 @@ public class DocumentSemanticSearchServiceTests
         // Assert
         // Two question embeddings + one document chunk embedding.
         Assert.Equal(3, handler.RequestCount);
+    }
+
+    [Fact]
+    public async Task FindRelevantChunksAsync_ReturnsNoChunks_WhenQuestionIsUnrelated()
+    {
+        // Arrange
+        var handler = new FakeEmbeddingHandler();
+        var service = CreateService(handler);
+
+        var document = "The library opens at 9 AM.";
+
+        // Act
+        var result = await service.FindRelevantChunksAsync(
+            document,
+            "What is the population of Chicago?");
+
+        // Assert
+        Assert.Empty(result);
     }
 
     [Fact]
@@ -103,31 +122,41 @@ public class DocumentSemanticSearchServiceTests
     {
         public int RequestCount { get; private set; }
 
-        protected override Task<HttpResponseMessage> SendAsync(
+        protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
             RequestCount++;
 
-            var embedding = string.Join(
-                ",",
-                Enumerable.Repeat("0.25", 768));
+            var requestBody = await request.Content!
+                .ReadAsStringAsync(cancellationToken);
 
-            var json = $$"""
+            using var jsonDocument = JsonDocument.Parse(requestBody);
+
+            var input = jsonDocument.RootElement
+                .GetProperty("input")
+                .GetString()!;
+
+            // The document and related questions get matching embeddings.
+            // The unrelated question gets a perpendicular embedding.
+            float[] embedding = input.Contains(
+                "population of Chicago",
+                StringComparison.OrdinalIgnoreCase)
+                ? [0f, 1f, 0f]
+                : [1f, 0f, 0f];
+
+            var json = JsonSerializer.Serialize(new
             {
-                "embeddings": [
-                    [{{embedding}}]
-                ]
-            }
-            """;
+                embeddings = new[] { embedding }
+            });
 
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            return new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent(
                     json,
                     Encoding.UTF8,
                     "application/json")
-            });
+            };
         }
     }
 }

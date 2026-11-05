@@ -26,6 +26,8 @@ public class DocumentSemanticSearchService
         string documentText,
         string question,
         int numberOfResults = 3,
+        double similarityThreshold = 0.60,
+     
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(documentText))
@@ -46,6 +48,12 @@ public class DocumentSemanticSearchService
         {
             throw new ArgumentOutOfRangeException(
                 nameof(numberOfResults));
+        }
+
+        if (similarityThreshold < -1 || similarityThreshold > 1)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(similarityThreshold));
         }
 
         var chunks = _chunkingService.SplitIntoChunks(documentText);
@@ -84,7 +92,12 @@ public class DocumentSemanticSearchService
                 questionEmbedding,
                 chunkEmbedding!);
 
-            scoredChunks.Add((chunk, score));
+             
+            // Keep only chunks that meet the similarity threshold.
+            if (score >= similarityThreshold)
+            {
+                scoredChunks.Add((chunk, score));
+            }
         }
 
         return scoredChunks
